@@ -1,4 +1,8 @@
+import io
+import math
+import struct
 import time
+import wave
 from collections import deque
 from datetime import datetime
 
@@ -16,6 +20,26 @@ st.set_page_config(
 )
 
 MAX_POINTS = 180
+
+
+def make_alarm_beep(duration=0.22, frequency=880, sample_rate=22050):
+    """Generate a short, self-contained WAV beep for browser playback."""
+    frames = bytearray()
+    total = int(duration * sample_rate)
+    for i in range(total):
+        envelope = min(1.0, i / 250, (total - i) / 500)
+        sample = int(9000 * envelope * math.sin(2 * math.pi * frequency * i / sample_rate))
+        frames.extend(struct.pack("<h", sample))
+    out = io.BytesIO()
+    with wave.open(out, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(frames)
+    return out.getvalue()
+
+
+ALARM_BEEP = make_alarm_beep()
 
 st.markdown(
     """
@@ -107,6 +131,7 @@ with st.sidebar:
     selected_port = st.selectbox("ESP32 serial port", port_options)
     baud = st.selectbox("Baud rate", [115200, 9600], index=0)
     start_stream = st.toggle("Start live stream", value=False)
+    sound_enabled = st.checkbox("Enable browser alarm sound", value=True)
     tilt_limit = st.number_input(
         "Tilt alarm limit (degrees)", min_value=0.1, max_value=45.0, value=3.5, step=0.5
     )
@@ -148,6 +173,16 @@ def update_dashboard():
     vibration = latest["vibration"]
     gate_closed = bool(latest["gate"])
     danger = gate_closed or abs(tilt) >= tilt_limit
+
+    # Play a short browser beep on the alarm edge, then at most every 5 seconds.
+    # Browser autoplay policies may require the user to interact with the page first.
+    now_epoch = time.time()
+    previous_alarm = st.session_state.get("previous_alarm", False)
+    last_beep_epoch = st.session_state.get("last_beep_epoch", 0.0)
+    if sound_enabled and danger and (not previous_alarm or now_epoch - last_beep_epoch >= 5.0):
+        st.audio(ALARM_BEEP, format="audio/wav", autoplay=True)
+        st.session_state.last_beep_epoch = now_epoch
+    st.session_state.previous_alarm = danger
 
     if danger:
         status_area.markdown(
