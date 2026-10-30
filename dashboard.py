@@ -232,8 +232,6 @@ def update_dashboard():
     )
 
 
-# Streamlit fragments refresh only this dashboard section, avoiding the old
-# blocking while-loop. On older Streamlit versions, use the manual refresh button.
 fragment = getattr(st, "fragment", None)
 if fragment is not None:
     fragment(run_every=0.5)(update_dashboard)()
