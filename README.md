@@ -15,12 +15,10 @@ StructSense is a real-time, IoT-based Structural Health Monitoring (SHM) prototy
 flowchart TD
     subgraph Bridge["Smart Highway Overpass"]
         S1["MPU6050 (Tilt & Sway)"]
-        S2["4x Piezo Discs (Acoustic Emission)"]
         Act1["SG90 Servo (Safety Barrier)"]
     end
 
     S1 --> ESP32["ESP32 DevKit V1"]
-    S2 --> ESP32
     ESP32 --> Act1
 
     ESP32 -->|Serial USB Data Stream| Laptop["Local Host Dashboard"]
